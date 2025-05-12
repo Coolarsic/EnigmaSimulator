@@ -23,7 +23,6 @@ class Plugboard: # Класс входной панели
         self.keys = dict()
         for pair in keys:
             a, b = pair.upper()[0], pair.upper()[1]
-            print(a, b)
             self.keys[a] = b
 
 
