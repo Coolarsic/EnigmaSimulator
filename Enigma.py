@@ -35,22 +35,21 @@ class Plugboard: # Класс входной панели
 
 
 class Rotor:
-    def __init__(self, wiring, notch):
+    def __init__(self, wiring, notch, position):
         self.wiring = wiring
         self.notch = notch
-        self.position = 0
-        self.ring_setting = 0
+        self.position = position
     
     def encode_forward(self, char):
-        shifted_char = chr((ord(char) - ord('A') + self.position - self.ring_setting) % 26 + ord('A'))
+        shifted_char = chr((ord(char) - ord('A') + self.position) % 26 + ord('A'))
         encrypted_char = self.wiring[ord(shifted_char) - ord('A')]
-        return chr((ord(encrypted_char) - ord('A') - self.position + self.ring_setting) % 26 + ord('A'))
+        return chr((ord(encrypted_char) - ord('A') - self.position) % 26 + ord('A'))
     
     def encode_backward(self, char):
-        shifted_char = chr((ord(char) - ord('A') + self.position - self.ring_setting) % 26 + ord('A'))
+        shifted_char = chr((ord(char) - ord('A') + self.position) % 26 + ord('A'))
         encrypted_pos = self.wiring.index(shifted_char)
         encrypted_char = chr(encrypted_pos + ord('A'))
-        return chr((ord(encrypted_char) - ord('A') - self.position + self.ring_setting) % 26 + ord('A'))
+        return chr((ord(encrypted_char) - ord('A') - self.position) % 26 + ord('A'))
     
     def rotate(self):
         self.position = (self.position + 1) % 26
@@ -106,67 +105,70 @@ class Enigma:
         return ''.join(encoded)
     
 
+def crack_enigma(ciphertext, known_plaintext, positions):
 
-Rotor1 = Rotor(ROTOR_I, NOTCHES[0])
-Rotor2 = Rotor(ROTOR_II, NOTCHES[1])
-Rotor4 = Rotor(ROTOR_IV, NOTCHES[3])
-ReflectorB = Reflector(REFLECTOR_B)
-Plugboard1 = Plugboard(["AB", "CD", "EF", "GH", "IJ", "KL", "MN", "OP", "QR", "ST"])
-Enigma1 = Enigma([Rotor4, Rotor2, Rotor1], ReflectorB, Plugboard1)
-EncodedMessage = Enigma1.encode_message("WEATHER")
-print(EncodedMessage)
-
-Rotor1 = Rotor(ROTOR_I, NOTCHES[0])
-Rotor2 = Rotor(ROTOR_II, NOTCHES[1])
-Rotor4 = Rotor(ROTOR_IV, NOTCHES[3])
-ReflectorB = Reflector(REFLECTOR_B)
-Plugboard2 = Plugboard(["AB", "CD", "EF", "GH", "IJ", "KL", "MN", "OP", "QR", "ST"])
-Enigma2 = Enigma([Rotor4, Rotor2, Rotor1], ReflectorB, Plugboard2)
-DecodedMessage = Enigma2.encode_message(EncodedMessage)
-print(DecodedMessage)
-
-
-def optimized_crack(ciphertext, known_plaintext, crib_positions):
-    """
-    Оптимизированный метод с использованием "крибов" (известных фраз)
-    crib_positions - возможные позиции известного текста в шифровке
-    """
-    # Реализация метода "меню" Тьюринга
-    # Поиск циклов в сопоставлении известного текста и шифровки
-    # Это позволяет исключить множество неподходящих настроек
-    
     best_score = 0
     best_config = None
     
-    for pos in crib_positions:
+    for pos in positions:
         crib = known_plaintext
         cipher_part = ciphertext[pos:pos+len(crib)]
         
-        # Упрощенная проверка (в реальности использовались более сложные методы)
-        for rotor_comb in [("I", "II", "III"), ("IV", "II", "V"), ("III", "II", "I")]:
-            for reflector in ["B", "C"]:
-                # Проверка только некоторых позиций
-                for pos1, pos2, pos3 in product("ABCDE", repeat=3):
-                    enigma = create_enigma(
-                        rotor_comb,
-                        [pos1, pos2, pos3],
-                        [0, 0, 0],
-                        [],
-                        reflector
+        for rotor_comb in [(ROTOR_I, ROTOR_II, ROTOR_III), (ROTOR_IV, ROTOR_II, ROTOR_I)]:
+            notches = []
+            for i in rotor_comb:
+                if i == ROTOR_I:
+                    notches.append(NOTCHES[0])
+                elif i == ROTOR_II:
+                    notches.append(NOTCHES[1])
+                elif i == ROTOR_III:
+                    notches.append(NOTCHES[2])
+                elif i == ROTOR_IV:
+                    notches.append(NOTCHES[3])
+                else:
+                    notches.append(NOTCHES[4])
+            for reflect in [REFLECTOR_B, REFLECTOR_C]:
+
+                for pos1, pos2, pos3 in product("ABCDEFGHJKLMN", repeat=3):
+                    print(pos1, pos2, pos3)
+                    Rotor1, Rotor2, Rotor3 = Rotor(rotor_comb[0], notches[0], ord(pos1) - ord("A")), Rotor(rotor_comb[1], notches[1], ord(pos2) - ord("A")), Rotor(rotor_comb[2], notches[2], ord(pos3) - ord("A"))
+                    Reflect = Reflector(reflect)
+                    PlugboardE = Plugboard([])
+                    enigma = Enigma(
+                        [Rotor1, Rotor2, Rotor3], 
+                        Reflect, 
+                        PlugboardE
                     )
                     
                     decrypted = enigma.encode_message(cipher_part)
                     score = sum(1 for a, b in zip(decrypted, crib) if a == b)
-                    
+                    print(score)
+                    print(decrypted)
+                    print(crib)
                     if score > best_score:
                         best_score = score
                         best_config = {
-                            'rotors': rotor_comb,
+                            'rotors': [Rotor1.wiring, Rotor2.wiring, Rotor3.wiring],
                             'positions': [pos1, pos2, pos3],
-                            'reflector': reflector
+                            'reflector': Reflect.wiring
                         }
                         
                         if best_score == len(crib):
                             return best_config
     
-    return best_config if best_score > len(known_plaintext) / 2 else None
+    return best_config if best_score > (len(known_plaintext) / 2) else None
+    
+
+
+Rotor1 = Rotor(ROTOR_II, NOTCHES[1], 1)
+Rotor2 = Rotor(ROTOR_IV, NOTCHES[3], 3)
+Rotor3 = Rotor(ROTOR_V, NOTCHES[4], 5)
+ReflectorC = Reflector(REFLECTOR_B)
+Plugboard1 = Plugboard([])
+Enigma1 = Enigma([Rotor1, Rotor2, Rotor3], ReflectorC, Plugboard1)
+EncodedMessage = Enigma1.encode_message("EINSATTACK")
+
+print(EncodedMessage)
+
+
+# print(crack_enigma(EncodedMessage, "ATTACK", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
