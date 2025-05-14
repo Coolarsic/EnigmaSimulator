@@ -2,7 +2,7 @@ import string
 from collections import defaultdict
 import random
 from itertools import product
-
+import time
 # Роторы(исторически точные параметры)
 ROTOR_I = "EKMFLGDQVZNTOWYHXUSPAIBRCJ"
 ROTOR_II = "AJDKSIRUXBLHWTMCQGZNPYFVOE"
@@ -114,7 +114,7 @@ def crack_enigma(ciphertext, known_plaintext, positions):
         crib = known_plaintext
         cipher_part = ciphertext[pos:pos+len(crib)]
         
-        for rotor_comb in [(ROTOR_I, ROTOR_II, ROTOR_III), (ROTOR_IV, ROTOR_II, ROTOR_I)]:
+        for rotor_comb in [(ROTOR_II, ROTOR_IV, ROTOR_V), (ROTOR_III, ROTOR_I, ROTOR_IV)]:
             notches = []
             for i in rotor_comb:
                 if i == ROTOR_I:
@@ -129,8 +129,7 @@ def crack_enigma(ciphertext, known_plaintext, positions):
                     notches.append(NOTCHES[4])
             for reflect in [REFLECTOR_B, REFLECTOR_C]:
 
-                for pos1, pos2, pos3 in product("ABCDEFGHJKLMN", repeat=3):
-                    print(pos1, pos2, pos3)
+                for pos1, pos2, pos3 in product("ABCDEFGHIJKLMNOPQRSTUVWXYZ", repeat=3):
                     Rotor1, Rotor2, Rotor3 = Rotor(rotor_comb[0], notches[0], ord(pos1) - ord("A")), Rotor(rotor_comb[1], notches[1], ord(pos2) - ord("A")), Rotor(rotor_comb[2], notches[2], ord(pos3) - ord("A"))
                     Reflect = Reflector(reflect)
                     PlugboardE = Plugboard([])
@@ -142,9 +141,6 @@ def crack_enigma(ciphertext, known_plaintext, positions):
                     
                     decrypted = enigma.encode_message(cipher_part)
                     score = sum(1 for a, b in zip(decrypted, crib) if a == b)
-                    print(score)
-                    print(decrypted)
-                    print(crib)
                     if score > best_score:
                         best_score = score
                         best_config = {
@@ -160,15 +156,17 @@ def crack_enigma(ciphertext, known_plaintext, positions):
     
 
 
-Rotor1 = Rotor(ROTOR_II, NOTCHES[1], 1)
-Rotor2 = Rotor(ROTOR_IV, NOTCHES[3], 3)
-Rotor3 = Rotor(ROTOR_V, NOTCHES[4], 5)
+Rotor1 = Rotor(ROTOR_III, NOTCHES[2], 25)
+Rotor2 = Rotor(ROTOR_I, NOTCHES[0], 25)
+Rotor3 = Rotor(ROTOR_IV, NOTCHES[3], 25)
 ReflectorC = Reflector(REFLECTOR_B)
 Plugboard1 = Plugboard([])
 Enigma1 = Enigma([Rotor1, Rotor2, Rotor3], ReflectorC, Plugboard1)
-EncodedMessage = Enigma1.encode_message("EINSATTACK")
+EncodedMessage = Enigma1.encode_message("ATTACKPOINTB")
 
 print(EncodedMessage)
 
-
-# print(crack_enigma(EncodedMessage, "ATTACK", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+start = time.time()
+print(crack_enigma(EncodedMessage, "ATTACK", [0, 1, 2, 3, 4, 5, 6]))
+end = time.time()
+print(end - start)
